@@ -1,0 +1,44 @@
+{CADENAS DE PRUEBA}
+
+thisisanunusuallylongidentifierbutitislegal;
+'What the #&*%!'
+'Don''t forget'
+'Maximum of 15 characters'
+x = 123 + 123456789;
+{ comment comment comment }
+(**) more (***) comments (****) here (*****) x (******) y (*)*) z
+{ 2147483647 is the maximum unsigned integer:  2 ^ 31 - 1. }
+{ floating point can range from 1.175495E-38 to 3.402823E+38 }
+1234567890
+2147483647 - 7;
+2147483648                      {too big by 1}
+99999999999999999 - x;          {too big}
+3.14
+1..10
+3.14159
+3.141593
+3.1415927
+3.14159265
+00000000000000000003.14159265
+314159265358979323846264.3                   { legal. }
+0.0000000000000000000000000000031415927      { legal. }
+
+
+
+{CODIGO PRUEBA 2}
+
+program graph1(output)?
+const d = 0.0625; {1/16, 16 lines for interval [x,x+1]}
+      s = 32; {32 character widths for interval [y,y+1]}
+      h = 34; {character position of x-axis}
+      c = 6.28318; {2*pi}  lim = 32 ;
+	a = 'Hello''' world'
+begin
+   for i = 0 to lim do
+      begin x = d*i; y = exp(-x)*sin(c*x);
+      n = round(s*y) + h;
+      repeat n = n-1
+      until n=0;
+   end
+end.
+
