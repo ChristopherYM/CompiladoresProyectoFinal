@@ -1,0 +1,21 @@
+Assign := id = Expr ;
+Bool := Rel Booll
+Booll := BoolOp Rel Booll
+Booll := lambda
+Rel := Expr Rell
+Rell := RelOp Expr Rell
+Rell := lambda
+Expr := Term Exprr
+Exprr := + Term Exprr
+Exprr := - Term Exprr
+Exprr := lambda
+Term := Factor Termm
+Termm := * Factor Termm
+Termm := / Factor Termm
+Termm := lambda
+Factor := id
+Factor := Value
+Factor := ( Expr )
+Value := v_int | v_real | v_string
+RelOp := = <> | < | <= | >= | >
+BoolOp := and | or
