@@ -1,13 +1,12 @@
+DiccionarioError={1:'Sintaxis de Numero equivocada',\
+                  2:'Operador no valido equivocada',\
+                  3:'Variable contiene caracteres invalidos',\
+                  4:'Desbalance, operador parentesis de cierre faltante',\
+                  5:'Desbalance, operador parentesis de apertura faltante'}
+
+operadores="*/()+-"
 dolar='$'
 
-DiccionarioError={1:'Error lexico: No se encontro comilla de cierre en string',\
-                  2:'Error lexico: Uso no permitido de caracter (\\)',\
-                  3:'Error lexico: Error de escritura en valor numerico',\
-                  4:'Error lexico: Error de escritura en nombre de variable',\
-                  5:'Error lexico: Operador o caracter no reconocido',\
-                  6:'Error sintactico: Falta operador llave ({) que indique inicio del Scope',\
-                  7:'Error sintactico: Falta operador llave (}) que indique final del Scope',\
-                  8:'Error sintactico: Falta operador punto y coma (;) que indique fin de linea'}
 class Log:
     lista_errores=[]
     lista_warnigs=[]
@@ -18,150 +17,93 @@ class Log:
         self.f = open("errores.txt", "w")
     def addError(self, codigo, errorParametro):
         self.lista_errores.append( (errorParametro.indice,codigo) )
-        self.f.write("Error "+str(codigo) +" en la linea "+str(errorParametro.indice[1]) +", posicion "+str(errorParametro.indice[0])+ "\nToken:" +errorParametro.palabra+"\n"+str(DiccionarioError[codigo])+"\n")
+        self.f.write("Error "+str(codigo) +" en la posicion "+str(errorParametro.indice)+ "\nToken:" +errorParametro.palabra+"\n"+str(DiccionarioError[codigo])+"\n")
     def addWarning(self, codigo, warningParametro):
         self.lista_warnigs.append( (warningParametro.indice,codigo) )
-        self.f.write("Warning "+str(codigo) +" en la linea "+str(warningParametro.indice[1]) +", posicion "+str(warningParametro.indice)+ "\nToken:" +warningParametro.palabra+"\n"+str(DiccionarioError[codigo])+"\n")
+        self.f.write("Warning "+str(codigo) +" en la posicion "+str(warningParametro.indice)+ "\nToken:" +warningParametro.palabra+"\n"+str(DiccionarioError[codigo])+"\n")
     def print(self):
         if(len(self.lista_errores)==0 and len(self.lista_warnigs)==0):
             return True
-        self.f.close()
-        f = open('errores.txt', 'r')
-        file_contents = f.read()
-        print (file_contents)
-        f.close()
+        for e in self.lista_errores:
+            print("Error "+str(e[1]) +" en la posicion "+str(e[0])+ "\n"+DiccionarioError[e[1]])
+        for e in self.lista_warnigs:
+            print("Error "+str(e[1]) +" en la posicion "+str(e[0])+ "\n"+DiccionarioError[e[1]])
         return False
-    def cerrarLog(self):
-        self.f.close()
 
 errorLog=Log()
 
-delimitadores={',':"COMA",';':"PUNTO_COMA",':':"DOS_PUNTOS",'(':"OPEN_PARENTESIS",')':"END_PARENTESIS",\
-               '[':"OPEN_CORCHETE",']':"END_CORCHETE",'..':"DELIMITADOR"}
-operadores={"+":"SUMA","-":"RESTA","*":"MULTIPLICAR","/":"DIVIDIR","=":"IGUAL","<":"MENOR",\
-            ">":"MAYOR","^":"OPERACIÓN","and":"AND","or":"OR","not":"NOT","div":"DIV","mod":"MOD","in":"IN"}
-reservadas={"array","downto","function","of","repeat","until",\
-            "begin","else","goto","packed","set","var","case","end","if",\
-            "procedure","then","while","const","file","label","program","to",\
-            "with","do","for","nil","record","type"}
-
 class Token:
     palabra = "" #almacena una copia de la palabra
-    indice = (-1,-1) #en donde apareció en la sentencia
-    tipo = '' 
-    def __init__(self,cadena, i, iLinea, t):
+    indice = -1 #en donde apareció en la sentencia
+    tipo = '' #int (entero), #float (flotante), variable (variable), O (operador), string (string), time (time), X (error)
+    def __init__(self,cadena, i, t):
         self.palabra=cadena
-        self.indice=(i,iLinea)
+        self.indice=i
         self.tipo=t
     def toString(self):
-        return "Pos_Token = "+str(self.indice)+"   <"+self.tipo+", "+self.palabra+">"
+        return "Token["+self.palabra+"]: pos = "+str(self.indice)+", tipo ="+self.tipo
 
-def reconoceNumero(linea,idx,lineaIdx):
-    palabra=linea[idx]
-    iAux=idx+1
-    contPuntos=0
-    while(iAux<len(linea) and linea[iAux]!=' ' and linea[iAux]!='\n' and linea [iAux]!= '\t'and linea[iAux] not in operadores and linea[iAux] not in delimitadores):
-        if (linea[iAux]=='.'): #si es float 
-            if (not linea[iAux+1].isdigit()):
-                contPuntos=10
-            else:
-                contPuntos+=1
-        elif (not linea[iAux].isdigit()): #error
-            contPuntos=10
-        palabra+=linea[iAux]
-        iAux=iAux+1
-    if(contPuntos == 0 and palabra[0] != '+'):
-        return Token(palabra,idx,lineaIdx,'NUM_INT'),iAux
-    elif(contPuntos == 1 and palabra[0] != '+'):
-        return Token(palabra,idx,lineaIdx,'NUM_FLOAT'),iAux
-    else:
-        return Token(palabra,idx,lineaIdx,'ERROR_NUM'),iAux
 
-def reconoceAlphanum(linea,idx,lineaIdx):
+def reconoceNumero(linea,idx):
     iAux=idx
     palabra=""
-    flagReconocer=True
-    while(iAux<len(linea) and linea[iAux]!=' ' and linea[iAux]!='\n' and linea [iAux]!= '\t' and linea[iAux] not in operadores and linea[iAux] not in delimitadores):
+    flagError=0
+    while(iAux<len(linea) and linea[iAux]!=' ' and linea[iAux] not in operadores):
+        if (not linea[iAux].isnumeric()):
+            if(flagError==0 and not linea[iAux].isalpha()):
+                flagError=1
+            else:
+                flagError=2
         palabra+=linea[iAux]
-        if((not linea[iAux].isalnum())): #es alfanum 
-            flagReconocer=False
         iAux=iAux+1
-    if(flagReconocer):
-        if(palabra in reservadas):
-            return Token(palabra,idx,lineaIdx,palabra.upper()),iAux
-        elif (palabra in operadores):
-            return Token(palabra,idx,lineaIdx,palabra.upper()),iAux
-        else:
-            return Token(palabra,idx,lineaIdx,'ID'),iAux
+    if(flagError==0):
+        return Token(palabra,idx,'num'),iAux
+    elif(flagError==1):
+        return Token(palabra,idx,'errorOperador'),iAux
     else:
-        return Token(palabra,idx,lineaIdx,'ERROR_ID'),iAux
+        return Token(palabra,idx,'errorNumero'),iAux
 
-def reconoceString(linea,idx,lineaIdx):
-    iAux=idx+1
-    texto='\''
-    flagSlash=0
-    while(iAux<len(linea) and linea[iAux]!='\''):
-        texto+=linea[iAux]
+def reconoceAlphanum(linea,idx):
+    iAux=idx
+    palabra=""
+    flagError=0
+    while(iAux<len(linea) and linea[iAux]!=' ' and linea[iAux] not in operadores):
+        if (not linea[iAux].isalnum()):
+            flagError=1
+        palabra+=linea[iAux]
         iAux=iAux+1
-        if (linea[iAux]=='\'' and linea[iAux+1]=='\''):
-            texto=texto+linea[iAux]+linea[iAux+1]
-            iAux=iAux+2
-        if (linea[iAux]=='\n'):
-            flagSlash=1
-            break
-    if(flagSlash):
-        return Token(texto+"\'",idx,lineaIdx,'ERROR_STRING'),idx+1
-    elif(iAux<len(linea)):
-        return Token(texto+"\'",idx,lineaIdx,'STRING'),iAux+1
+    if(flagError==0):
+        return Token(palabra,idx,'id'),iAux
     else:
-        return Token("\'",idx,lineaIdx,'ERROR_STRING'),idx+1
+        return Token(palabra,idx,'errorVariable'),iAux
+
 
 def analizadorLexico(texto):
     tokens=[]
-    lineaIdx=0
     for linea in texto:
-        lineaIdx+=1
         idx=0
         while idx<len(linea):
-            if linea[idx] == '\'':
-                token,idx=reconoceString(linea,idx,lineaIdx)
-                if token.tipo=='ERROR_STRING':
+            if (linea[idx] == ' ' or linea[idx]=='\t' or linea[idx]=='\n'):
+                idx=idx+1
+            elif linea[idx].isnumeric():
+                token,idx=reconoceNumero(linea,idx)
+                if token.tipo=='errorOperador':
+                    errorLog.addError(2,token)
+                    token.tipo='num'
+                elif token.tipo=='errorNumero':
                     errorLog.addError(1,token)
-                    token.tipo='string'
-                tokens.append(token)
-            elif ((linea[idx] == '+' or linea[idx] == '-') and linea[idx+1].isnumeric()) or linea[idx].isnumeric():
-                token,idx=reconoceNumero(linea,idx,lineaIdx)
-                if token.tipo=='ERROR_NUM':
-                    errorLog.addError(3,token)
-                    token.tipo=''
+                    token.tipo='num'
                 tokens.append(token)
             elif linea[idx].isalpha():
-                token,idx=reconoceAlphanum(linea,idx,lineaIdx)
-                if token.tipo=='ERROR_ID':
-                    errorLog.addError(4,token)
-                    token.tipo='ID'
+                token,idx=reconoceAlphanum(linea,idx)
+                if token !=0:
+                    errorLog.addError(3,token)
+                    token.tipo='id'
                 tokens.append(token)
-            elif linea[idx] in operadores: #operadores
-                tokens.append(Token(linea[idx],idx,lineaIdx,operadores[linea[idx]]))
+            elif linea[idx] in operadores:
+                tokens.append(Token(linea[idx],idx,linea[idx]))
                 idx=idx+1
-            elif (linea[idx] == '(' and linea[idx+1] == '*'): #comentario
-                idx=idx+2
-                while (linea[idx] != '*' or linea[idx+1] != ')' and idx+2<len(linea)):
-                    idx=idx+1
-                idx=idx+2
-            elif linea[idx] in delimitadores: #delimitadores
-                tokens.append(Token(linea[idx],idx,lineaIdx,delimitadores[linea[idx]]))
-                idx=idx+1
-            elif (linea[idx] == ' ' or linea[idx]=='\t' or linea[idx]=='\n'): #esacio y salto de linea
-                idx=idx+1
-            elif linea[idx] == '{': #comentario
-                while (linea[idx] != '}' and idx+1<len(linea)):
-                    idx=idx+1
-                idx=idx+1
-            else:
-                tokens.append(Token(linea[idx],idx,lineaIdx,'ERROR_LEXICO'))
-                errorLog.addError(5,token)
-                idx=idx+1
+                aux=""
     return tokens
 
 class Produccion:
@@ -208,8 +150,9 @@ class TAS:
         for nT in self.noterminales:
             aux=nT+'\t|'
             for t in self.terminales:
-                aux+=' '.join(map(str, self.tablaSintactica[nT][t]))
-                aux+='\t|'
+                if t!="lambda":
+                    aux+=' '.join(map(str, self.tablaSintactica[nT][t]))
+                    aux+='\t|'
             print (aux)
 
 class Nodo:
@@ -319,8 +262,8 @@ class Gramatica:
             if e in self.terminales:
                 self.terminales.remove(e)
         #Descomentar para ver primeros y siguientes
-        print("terminales: ", self.terminales)
-        print("no terminales: ", self.noterminales)
+        #print(self.terminales)
+        #print(self.noterminales)
     def getProduccion(self,izq):
         aux=""
         for p in self.produccion:
@@ -365,14 +308,17 @@ class Gramatica:
             self.siguientes[nT] = set()
         self.siguientes[self.inicial] = {dolar}
         self.getPrimeros()
-        for r in range(5):
+        for r in range(3):
             for p in self.produccion:
                 for i in range(len(p.der)-1):
                     if p.der[i] in self.noterminales:
                         if p.der[i+1] in self.noterminales:
                             self.siguientes[p.der[i]].update(self.primeros[p.der[i+1]])
-                            if "lambda" in self.primeros[p.der[i+1]]:
+                            while "lambda" in self.siguientes[p.der[i]]:
+                                iAux=1
                                 self.siguientes[p.der[i]].remove("lambda")
+                                self.siguientes[p.der[i]].update(self.siguientes[p.der[i+iAux]])
+                                iAux+=1
                         else:
                             self.siguientes[p.der[i]].add(p.der[i+1])
                 if p.der[len(p.der)-1] in self.noterminales:
@@ -384,14 +330,7 @@ class Gramatica:
             if (p[0] in self.terminales and p[0]==nodoT) or (p[0] in self.noterminales and nodoT in self.primeros[p[0]]):
                 return p
         return []
-    def buscarProduccionProximaBool(self, nodoNt, nodoT):
-        prod=self.getProducciones(nodoNt)
-        for p in prod:
-            if (p[0] == nodoT):
-                return True
-        return False
     def crearTabla(self):
-        print("siguientes: ", self.getSiguientes())
         self.getSiguientes()
         self.tas = TAS(self)
         for nodoNt in self.noterminales:
@@ -404,6 +343,54 @@ class Gramatica:
         #Descomentar para visualizar tabla
         self.tas.print()
         return self.tas
+    def analizar(self, tokens ):
+        pila=[]
+        cola=[]
+        for t in tokens:
+            cola.append(t.tipo)
+        cola.append('$')
+        pila.insert(0,'$')
+        pila.insert(0,self.inicial)
+        print("Tabla analisis sintactico:")
+        print("Pila"+' '*36+"Entrada"+' '*33+"Operacion"+'\t'+"Adicionar")
+        while(len(cola) and len(pila)):
+            #print("cola",cola)
+            #print("pila",pila)
+            auxPila=' '.join(map(str, reversed(pila)))
+            auxCola=' '.join(map(str, cola))
+            print(auxPila+' '*(40-len(auxPila))+auxCola+' '*(40-len(auxCola)),end='')
+            if(cola[0]==pila[0]):
+                if(cola[0]!='$'):
+                    print('2')
+                else:
+                    print()
+                cola.pop(0)
+                pila.pop(0)
+                
+            elif(pila[0] in self.noterminales and cola[0] in self.terminales):
+                tmp=pila.pop(0)
+                
+                #print(tmp,cola[0],self.tas.tablaSintactica[tmp][cola[0]])
+                if len(self.tas.tablaSintactica[tmp][cola[0]])>0:
+                    if self.tas.tablaSintactica[tmp][cola[0]][0]!="lambda":
+                        print('1\t\t',end='')
+                    else:
+                        print("3\t\t''",end='')
+                    #print("Nodo: ",tmp," Hijos: ", self.tas.tablaSintactica[tmp][cola[0]])
+                    for t in reversed(self.tas.tablaSintactica[tmp][cola[0]]):
+                        if t!="lambda":
+                            pila.insert(0,t)
+                            print(t,end='')
+                    print()
+                else:
+                    print()
+                    print("Error en Parser")
+                    return False
+            else:
+                print()
+                print("Error en Parser")
+                return False
+        return True
 
 def analizar(gramatica, tokens ):
     contador=0
@@ -417,17 +404,16 @@ def analizar(gramatica, tokens ):
     pila.insert(0,'$')
     pila.insert(0,gramatica.inicial)
     print()
-    #print("Tabla analisis sintactico:")
-    #print("Pila"+' '*36+"Entrada"+' '*33+"Operacion"+'\t'+"Adicionar")
+    print("Tabla analisis sintactico:")
+    print("Pila"+' '*36+"Entrada"+' '*33+"Operacion"+'\t'+"Adicionar")
     while(len(cola) and len(pila)):
         auxPila=' '.join(map(str, reversed(pila)))
         auxCola=' '.join(map(str, cola))
         #raiz.imprimir()
-        #print(auxPila+' '*(40-len(auxPila))+auxCola+' '*(40-len(auxCola)),end='')
+        print(auxPila+' '*(40-len(auxPila))+auxCola+' '*(40-len(auxCola)),end='')
         if(cola[0]==pila[0]):
             if(cola[0]!='$'):
-                #print('2')
-                pivote.val=tokens[contador].palabra
+                print('2')
                 pivote=opera2(pivote)
             else:
                 print()
@@ -440,33 +426,24 @@ def analizar(gramatica, tokens ):
             copiatmp=tmp
             if(copiatmp[0:5]=="Error"):
                 print("Modo Panico Activado: Desvalance en parentesis")
-                if(tmp=="ErrorIniScope"):
-                    errorLog.addError(6,tokens[contador])
-                elif(tmp=="ErrorEndScope"):
-                    errorLog.addError(7,tokens[contador])
-                elif(tmp=="ErrorEndLine"):
-                    errorLog.addError(8,tokens[contador])
+                if(tmp=="ErrorDBI"):
+                    errorLog.addError(4,tokens[contador])
+                elif(tmp=="ErrorDBD"):
+                    errorLog.addError(5,tokens[contador])
                 return False
             elif len(gramatica.tas.tablaSintactica[tmp][cola[0]])>0:
-                if gramatica.tas.tablaSintactica[tmp][cola[0]][0]=="lambda":
-                    if gramatica.buscarProduccionProximaBool(tmp,'lambda'):
-                        #print(len(gramatica.buscarProduccion(tmp,'lambda')))
-                        pivote=opera3(pivote)
-                    else:
-                        pivote=opera1(pivote,gramatica.buscarProduccion(tmp,'lambda'))
-                        for t in reversed(gramatica.buscarProduccion(tmp,'lambda')):
-                            pila.insert(0,t)
-                else:
+                if gramatica.tas.tablaSintactica[tmp][cola[0]][0]!="lambda":
+                    print('1\t\t',end='')
                     pivote=opera1(pivote,gramatica.tas.tablaSintactica[tmp][cola[0]])
                     for t in reversed(gramatica.tas.tablaSintactica[tmp][cola[0]]):
                         pila.insert(0,t)
-            elif gramatica.buscarProduccionProximaBool(tmp,'lambda'):
-                #print('\n\n\n\n\n'+str(len(gramatica.buscarProduccion(tmp,'lambda')))+'\n\n\n\n\n\n')
-                pivote=opera3(pivote)
-            elif gramatica.buscarProduccion(tmp,'lambda'):
-                pivote=opera1(pivote,gramatica.buscarProduccion(tmp,'lambda'))
-                for t in reversed(gramatica.buscarProduccion(tmp,'lambda')):
-                    pila.insert(0,t)
+                    for t in gramatica.tas.tablaSintactica[tmp][cola[0]]:
+                        print(t+' ',end='')
+                else:
+                    print("3\t\t''",end='')
+                    pivote=opera3(pivote)
+                
+                print()
             else:
                 print()
                 print("Modo Panico Activado: No correspondencia con la gramatica")
@@ -480,18 +457,12 @@ def analizar(gramatica, tokens ):
     raiz.imprimir()
     return True
 
-
-###########################################################3
-
-
 def main():
     gramaticaEditor=Gramatica()
     gramaticaEditor.cargar(open("gramatica.txt","r"))
-    tabla = gramaticaEditor.crearTabla()
+    tabla=gramaticaEditor.crearTabla()
     errorLog.inicializar()
-    tokens = analizadorLexico(open("codigoInputPrueba/valido1.txt","r"))
-    arbolraiz=analizar(gramaticaEditor, tokens)
-
+    tokens=analizadorLexico(open("codigo1.txt","r"))
     if ( analizar(gramaticaEditor,tokens) and errorLog.print()):
         print("-------- codigo analizado con exito --------")
     else:
