@@ -462,7 +462,7 @@ def main():
     gramaticaEditor.cargar(open("gramatica.txt","r"))
     tabla=gramaticaEditor.crearTabla()
     errorLog.inicializar()
-    tokens=analizadorLexico(open("codigo1.txt","r"))
+    analizadorLexico( open("codigoInputPrueba/valido1.txt","r")) 
     if ( analizar(gramaticaEditor,tokens) and errorLog.print()):
         print("-------- codigo analizado con exito --------")
     else:
